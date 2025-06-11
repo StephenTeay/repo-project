@@ -2,6 +2,24 @@
 from django.db.models import Q
 from django.views.generic import ListView
 from projects.models import Project
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
+
+class AdvancedSearchView(SearchView):
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search_query = self.request.GET.get('q')
+        
+        if search_query:
+            vector = SearchVector('title', weight='A') + \
+                    SearchVector('abstract', weight='B') + \
+                    SearchVector('keywords', weight='C')
+            query = SearchQuery(search_query)
+            queryset = queryset.annotate(
+                search=vector,
+                rank=SearchRank(vector, query)
+            ).filter(search=query).order_by('-rank')
+            
+        return queryset
 
 class SearchView(ListView):
     model = Project
